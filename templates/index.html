@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chatbot</title>
+    <style>
+        #chatbox {
+            width: 50%;
+            margin: 0 auto;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
+        #chatlog {
+            height: 300px;
+            overflow-y: scroll;
+            border: 1px solid #ccc;
+            margin-bottom: 10px;
+            padding: 10px;
+        }
+        #userInput {
+            width: calc(100% - 80px);
+            padding: 10px;
+            margin-right: 10px;
+        }
+        button {
+            padding: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div id="chatbox">
+        <div id="chatlog"></div>
+        <input type="text" id="userInput" placeholder="Type a message...">
+        <button onclick="sendMessage()">Send</button>
+    </div>
+
+    <script>
+        let chatlog = document.getElementById('chatlog');
+        let userResponses = {
+            years_of_experience: null,
+            favorite_programming_language: null,
+            willing_to_work_onsite: null,
+            willing_to_use_ruby: null,
+            interview_date: null
+        };
+        let questions = [
+            "Welcome to the Plaza selection process. Could you please tell me how many years of experience you have?",
+            "What is your favorite programming language?",
+            "Interesting, and would you be willing to program in Ruby?",
+            "Are you also willing to work on-site?",
+            "Let's schedule an interview with our technical team. What is your availability?"
+        ];
+        let currentQuestion = 0;
+
+        function sendMessage() {
+            const userMessage = document.getElementById('userInput').value;
+            if (!userMessage) return;
+
+            chatlog.innerHTML += `<p><b>You:</b> ${userMessage}</p>`;
+            document.getElementById('userInput').value = '';
+
+            fetch('/chat', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ message: userMessage })
+            })
+            .then(response => response.json())
+            .then(data => {
+                chatlog.innerHTML += `<p><b>Bot:</b> ${data.response}</p>`;
+                saveResponse(currentQuestion, userMessage);
+                if (currentQuestion < questions.length) {
+                    setTimeout(() => {
+                        sendQuestion();
+                    }, 1000);
+                }
+            });
+        }
+
+        function sendQuestion() {
+            const question = questions[currentQuestion++];
+            chatlog.innerHTML += `<p><b>Bot:</b> ${question}</p>`;
+        }
+
+        function saveResponse(questionIndex, response) {
+            switch (questionIndex) {
+                case 0:
+                    userResponses.years_of_experience = parseInt(response);
+                    break;
+                case 1:
+                    userResponses.favorite_programming_language = response;
+                    break;
+                case 2:
+                    userResponses.willing_to_use_ruby = response.toLowerCase() === 'yes';
+                    break;
+                case 3:
+                    userResponses.willing_to_work_onsite = response.toLowerCase() === 'yes';
+                    break;
+                case 4:
+                    userResponses.interview_date = response;
+                    break;
+            }
+
+            if (currentQuestion === questions.length) {
+                // Send all collected data to the backend for saving
+                fetch('/save', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(userResponses)
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        chatlog.innerHTML += `<p><b>Bot:</b> Thank you! All your data has been saved.</p>`;
+                    }
+                });
+            }
+        }
+
+        // Start the conversation
+        window.onload = () => {
+            sendQuestion();
+        };
+    </script>
+</body>
+</html>
